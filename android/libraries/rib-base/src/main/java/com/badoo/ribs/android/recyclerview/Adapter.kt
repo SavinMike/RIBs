@@ -29,6 +29,7 @@ internal class Adapter<T : Parcelable>(
     }
 
     private var items: List<Entry<T>> = initialEntries ?: emptyList()
+    private val addedItems: MutableList<ConfigurationKey<Configuration>> = mutableListOf()
 
     override fun getItemCount(): Int =
         items.size
@@ -48,7 +49,7 @@ internal class Adapter<T : Parcelable>(
 
     private fun eagerAdd(entry: Entry<T>) {
         if (hostingStrategy == EAGER) {
-            router.add(entry.configurationKey)
+            addToRouter(entry.configurationKey)
         }
     }
 
@@ -70,7 +71,7 @@ internal class Adapter<T : Parcelable>(
         super.onViewAttachedToWindow(holder)
         val configurationKey = holder.configurationKey!! // at this point it should be bound
         if (hostingStrategy == LAZY) {
-            router.add(configurationKey)
+            addToRouter(configurationKey)
         }
         router.activate(configurationKey)
         router.getNodes(configurationKey)!!.forEach { childNode ->
@@ -87,13 +88,13 @@ internal class Adapter<T : Parcelable>(
         val configurationKey = holder.configurationKey!! // at this point it should be bound
         deactivate(configurationKey)
         if (hostingStrategy == LAZY) {
-            router.remove(configurationKey)
+            removeFromRouter(configurationKey)
         }
     }
 
     internal fun onDestroy() {
-        items.forEach {
-            deactivate(it.configurationKey)
+        addedItems.forEach {
+            deactivate(it)
         }
     }
 
@@ -102,5 +103,15 @@ internal class Adapter<T : Parcelable>(
         router.getNodes(configurationKey)!!.forEach { childNode ->
             childNode.detachFromView()
         }
+    }
+
+    private fun removeFromRouter(configurationKey: ConfigurationKey<Configuration>) {
+        addedItems.remove(configurationKey)
+        router.remove(configurationKey)
+    }
+
+    private fun addToRouter(configurationKey: ConfigurationKey<Configuration>){
+        addedItems.add(configurationKey)
+        router.add(configurationKey)
     }
 }
