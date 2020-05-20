@@ -4,6 +4,7 @@ import android.os.Parcelable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.lifecycle.Lifecycle
 import androidx.recyclerview.widget.RecyclerView
 import com.badoo.ribs.android.recyclerview.RecyclerViewHost.HostingStrategy.EAGER
 import com.badoo.ribs.android.recyclerview.RecyclerViewHost.HostingStrategy.LAZY
@@ -11,6 +12,7 @@ import com.badoo.ribs.android.recyclerview.RecyclerViewHost.Input
 import com.badoo.ribs.android.recyclerview.RecyclerViewHostFeature.State.Entry
 import com.badoo.ribs.android.recyclerview.RecyclerViewHostRouter.Configuration
 import com.badoo.ribs.android.recyclerview.client.ViewHolderLayoutProvider
+import com.badoo.ribs.core.plugin.NodeLifecycleAware
 import com.badoo.ribs.core.routing.configuration.ConfigurationKey
 import io.reactivex.functions.Consumer
 import java.util.UUID
@@ -19,8 +21,9 @@ internal class Adapter<T : Parcelable>(
     private val hostingStrategy: RecyclerViewHost.HostingStrategy,
     initialEntries: List<Entry<T>>? = null,
     private val router: RecyclerViewHostRouter<T>,
-    private val viewHolderLayoutParams:  ViewHolderLayoutProvider<T>
+    private val viewHolderLayoutParams: ViewHolderLayoutProvider<T>
 ) : RecyclerView.Adapter<Adapter.ViewHolder>(),
+    NodeLifecycleAware,
     Consumer<RecyclerViewHostFeature.State<T>> {
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -30,6 +33,16 @@ internal class Adapter<T : Parcelable>(
 
     private var items: List<Entry<T>> = initialEntries ?: emptyList()
     private val addedItems: MutableList<ConfigurationKey<Configuration>> = mutableListOf()
+
+    override fun onAttach(nodeLifecycle: Lifecycle) {
+        items.forEach(::eagerAdd)
+    }
+
+    override fun onDetach() {
+        addedItems.forEach {
+            deactivate(it)
+        }
+    }
 
     override fun getItemCount(): Int =
         items.size
@@ -64,7 +77,6 @@ internal class Adapter<T : Parcelable>(
         val entry = items[position]
         holder.configurationKey = entry.configurationKey
         holder.uuid = entry.uuid
-
     }
 
     override fun onViewAttachedToWindow(holder: ViewHolder) {
@@ -92,12 +104,6 @@ internal class Adapter<T : Parcelable>(
         }
     }
 
-    internal fun onDestroy() {
-        addedItems.forEach {
-            deactivate(it)
-        }
-    }
-
     private fun deactivate(configurationKey: ConfigurationKey<Configuration>) {
         router.deactivate(configurationKey)
         router.getNodes(configurationKey)!!.forEach { childNode ->
@@ -110,7 +116,7 @@ internal class Adapter<T : Parcelable>(
         router.remove(configurationKey)
     }
 
-    private fun addToRouter(configurationKey: ConfigurationKey<Configuration>){
+    private fun addToRouter(configurationKey: ConfigurationKey<Configuration>) {
         addedItems.add(configurationKey)
         router.add(configurationKey)
     }
