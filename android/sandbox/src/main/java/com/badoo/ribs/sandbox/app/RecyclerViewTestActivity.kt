@@ -3,31 +3,32 @@ package com.badoo.ribs.sandbox.app
 import android.os.Bundle
 import android.os.Parcelable
 import android.view.ViewGroup
-import android.widget.FrameLayout
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.badoo.ribs.android.ActivityStarter
 import com.badoo.ribs.android.PermissionRequester
 import com.badoo.ribs.android.RibActivity
-import com.badoo.ribs.android.recyclerview.LayoutManagerFactory
-import com.badoo.ribs.android.recyclerview.RecyclerViewFactory
-import com.badoo.ribs.android.recyclerview.RecyclerViewHost
-import com.badoo.ribs.android.recyclerview.RecyclerViewHost.HostingStrategy.EAGER
 import com.badoo.ribs.android.recyclerview.RecyclerViewHost.Input
-import com.badoo.ribs.android.recyclerview.RecyclerViewHostBuilder
 import com.badoo.ribs.android.recyclerview.client.RecyclerViewRibResolver
 import com.badoo.ribs.core.Rib
 import com.badoo.ribs.core.Router
+import com.badoo.ribs.core.builder.BuildContext
 import com.badoo.ribs.core.builder.BuildContext.Companion.root
 import com.badoo.ribs.core.routing.action.AddToRecyclerViewRoutingAction.Companion.recyclerView
+import com.badoo.ribs.core.routing.action.AttachRibRoutingAction
 import com.badoo.ribs.core.routing.action.RoutingAction
 import com.badoo.ribs.core.routing.portal.Portal
+import com.badoo.ribs.core.routing.portal.PortalBuilder
+import com.badoo.ribs.core.routing.portal.PortalRouter
+import com.badoo.ribs.core.routing.transition.handler.CrossFader
+import com.badoo.ribs.core.routing.transition.handler.Slider
+import com.badoo.ribs.core.routing.transition.handler.TransitionHandler
 import com.badoo.ribs.dialog.DialogLauncher
 import com.badoo.ribs.sandbox.R
 import com.badoo.ribs.sandbox.rib.foo_bar.FooBar
 import com.badoo.ribs.sandbox.rib.foo_bar.FooBarBuilder
 import com.badoo.ribs.sandbox.rib.lorem_ipsum.LoremIpsum
 import com.badoo.ribs.sandbox.rib.lorem_ipsum.LoremIpsumBuilder
+import com.badoo.ribs.sandbox.rib.recycler.Recycler
+import com.badoo.ribs.sandbox.rib.recycler.builder.RecyclerBuilder
 import com.badoo.ribs.sandbox.rib.switcher.Switcher
 import com.badoo.ribs.sandbox.rib.switcher.builder.SwitcherBuilder
 import com.badoo.ribs.sandbox.util.CoffeeMachine
@@ -106,19 +107,45 @@ class RecyclerViewTestActivity : RibActivity() {
     )
 
     override fun createRib(savedInstanceState: Bundle?): Rib =
-        RecyclerViewHostBuilder(
-            object : RecyclerViewHost.Dependency<Item> {
-                override fun hostingStrategy(): RecyclerViewHost.HostingStrategy = EAGER
-                override fun initialElements(): List<Item> = initialElements
-                override fun recyclerViewHostInput(): ObservableSource<Input<Item>> = inputCommands
-                override fun resolver(): RecyclerViewRibResolver<Item> = ribResolver
-                override fun recyclerViewFactory(): RecyclerViewFactory = ::RecyclerView
-                override fun layoutManagerFactory(): LayoutManagerFactory = ::LinearLayoutManager
-                override fun viewHolderLayoutParams(): FrameLayout.LayoutParams =
-                    FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.WRAP_CONTENT
+        PortalBuilder(
+            object : Portal.Dependency {
+                override fun defaultRoutingAction(): (Portal.OtherSide) -> RoutingAction = { portal ->
+                    AttachRibRoutingAction.attach { buildRecyclerNode(portal, it) }
+                }
+
+                override fun transitionHandler(): TransitionHandler<PortalRouter.Configuration>? =
+                    TransitionHandler.multiple(
+                        Slider { it.configuration is PortalRouter.Configuration.Content },
+                        CrossFader { it.configuration is PortalRouter.Configuration.Overlay }
                     )
+
+                private fun buildRecyclerNode(portal: Portal.OtherSide, buildContext: BuildContext): Recycler =
+                    RecyclerBuilder(
+                        object : Recycler.Dependency {
+                            override fun permissionRequester(): PermissionRequester =
+                                permissionRequester
+
+                            override fun activityStarter(): ActivityStarter =
+                                activityStarter
+
+                            override fun portal(): Portal.OtherSide =
+                                portal
+
+                            override fun dialogLauncher(): DialogLauncher =
+                                this@RecyclerViewTestActivity
+                        }
+                    ).build(buildContext)
             }
-        ).build(root(savedInstanceState))
+        ).build(root(savedInstanceState, AppRibCustomisations))
+//        RecyclerViewHostBuilder(
+//            object : RecyclerViewHost.Dependency<Item> {
+//                override fun hostingStrategy(): RecyclerViewHost.HostingStrategy = EAGER
+//                override fun initialElements(): List<Item> = initialElements
+//                override fun recyclerViewHostInput(): ObservableSource<Input<Item>> = inputCommands
+//                override fun resolver(): RecyclerViewRibResolver<Item> = ribResolver
+//                override fun recyclerViewFactory(): RecyclerViewFactory = ::RecyclerView
+//                override fun layoutManagerFactory(): LayoutManagerFactory = ::LinearLayoutManager
+//                override fun viewHolderLayoutParams(): ViewHolderLayoutProvider<Item> = object : ViewHolderLayoutProvider<Item> {}
+//            }
+//        ).build(root(savedInstanceState))
 }

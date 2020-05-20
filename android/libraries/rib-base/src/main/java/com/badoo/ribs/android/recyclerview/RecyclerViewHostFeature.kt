@@ -17,7 +17,6 @@ private val timeCapsuleKey = "RecyclerViewHostFeature"
 private fun <T : Parcelable> TimeCapsule<State<T>>.initialState(): State<T> =
     (get(timeCapsuleKey) ?: State())
 
-
 internal class RecyclerViewHostFeature<T : Parcelable>(
     timeCapsule: TimeCapsule<State<T>>,
     initialElements: List<T>
@@ -68,22 +67,33 @@ internal class RecyclerViewHostFeature<T : Parcelable>(
      * [ConfigurationKey] position, which we keep incrementing.
      */
     class ReducerImpl<T : Parcelable> : Reducer<State<T>, Input<T>> {
-        override fun invoke(state: State<T>, input: Input<T>): State<T> = when (input) {
-            is Input.Add -> {
-                val uuid = UUID.randomUUID()
-                state.copy(
-                    lastCommand = input,
-                    nextKey = state.nextKey + 1,
-                    items = state.items + State.Entry<T>(
-                        element = input.element,
-                        uuid = uuid,
-                        configurationKey = ConfigurationKey.Content(
-                            index = state.nextKey,
-                            configuration = Item(uuid)
+        override fun invoke(state: State<T>, input: Input<T>): State<T> =
+            when (input) {
+                is Input.Add -> {
+                    val uuid = UUID.randomUUID()
+                    state.copy(
+                        lastCommand = input,
+                        nextKey = state.nextKey + 1,
+                        items = state.items + State.Entry<T>(
+                            element = input.element,
+                            uuid = uuid,
+                            configurationKey = ConfigurationKey.Content(
+                                index = state.nextKey,
+                                configuration = Item(uuid)
+                            )
                         )
                     )
-                )
+                }
+//                is Input.Remove -> {
+//                    state.copy(
+//                        lastCommand = input,
+//                        nextKey = state.nextKey,
+//                        items = state.items.toMutableList().apply {
+//                            removeAll { it.element == input.element }
+//                        }
+//                    )
+//                }
+//                is Input.Clear -> State()
             }
-        }
     }
 }

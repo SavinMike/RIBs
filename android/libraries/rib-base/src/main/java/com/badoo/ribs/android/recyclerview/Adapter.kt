@@ -10,6 +10,7 @@ import com.badoo.ribs.android.recyclerview.RecyclerViewHost.HostingStrategy.LAZY
 import com.badoo.ribs.android.recyclerview.RecyclerViewHost.Input
 import com.badoo.ribs.android.recyclerview.RecyclerViewHostFeature.State.Entry
 import com.badoo.ribs.android.recyclerview.RecyclerViewHostRouter.Configuration
+import com.badoo.ribs.android.recyclerview.client.ViewHolderLayoutProvider
 import com.badoo.ribs.core.routing.configuration.ConfigurationKey
 import io.reactivex.functions.Consumer
 import java.util.UUID
@@ -18,7 +19,7 @@ internal class Adapter<T : Parcelable>(
     private val hostingStrategy: RecyclerViewHost.HostingStrategy,
     initialEntries: List<Entry<T>>? = null,
     private val router: RecyclerViewHostRouter<T>,
-    private val viewHolderLayoutParams: FrameLayout.LayoutParams
+    private val viewHolderLayoutParams:  ViewHolderLayoutProvider<T>
 ) : RecyclerView.Adapter<Adapter.ViewHolder>(),
     Consumer<RecyclerViewHostFeature.State<T>> {
 
@@ -54,7 +55,7 @@ internal class Adapter<T : Parcelable>(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder =
         ViewHolder(
             FrameLayout(parent.context).apply {
-                layoutParams = viewHolderLayoutParams
+                layoutParams = viewHolderLayoutParams(viewType)
             }
         )
 
@@ -75,6 +76,10 @@ internal class Adapter<T : Parcelable>(
         router.getNodes(configurationKey)!!.forEach { childNode ->
             childNode.attachToView(holder.itemView as FrameLayout)
         }
+    }
+
+    override fun getItemViewType(position: Int): Int {
+        return viewHolderLayoutParams.provideViewType(position)
     }
 
     override fun onViewRecycled(holder: ViewHolder) {
