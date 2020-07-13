@@ -2,26 +2,32 @@ package com.badoo.ribs.android.recyclerview
 
 import android.content.Context
 import android.os.Parcelable
-import android.widget.FrameLayout
 import androidx.recyclerview.widget.RecyclerView
 import com.badoo.ribs.android.recyclerview.RecyclerViewHost.Input
-import com.badoo.ribs.clienthelper.connector.Connectable
+import com.badoo.ribs.android.recyclerview.client.ViewHolderLayoutProvider
 import com.badoo.ribs.annotation.ExperimentalApi
+import com.badoo.ribs.clienthelper.connector.Connectable
 import com.badoo.ribs.core.Rib
 import com.badoo.ribs.routing.resolver.RoutingResolver
+import io.reactivex.ObservableSource
 import kotlinx.android.parcel.Parcelize
 
 @ExperimentalApi
-interface RecyclerViewHost<T : Parcelable>: Rib, Connectable<Input<T>, Nothing> {
+interface RecyclerViewHost<T : Parcelable> : Rib, Connectable<Input<T>, Nothing> {
 
     @ExperimentalApi
-    interface Dependency<T : Parcelable> {
+    interface Dependency<T : Parcelable> : RecyclerViewDependency<T> {
         fun hostingStrategy(): HostingStrategy
         fun initialElements(): List<T>
+        fun recyclerViewHostInput(): ObservableSource<Input<T>>
         fun resolver(): RoutingResolver<T>
+    }
+
+    @ExperimentalApi
+    interface RecyclerViewDependency<T : Parcelable> {
         fun recyclerViewFactory(): RecyclerViewFactory
         fun layoutManagerFactory(): LayoutManagerFactory
-        fun viewHolderLayoutParams(): FrameLayout.LayoutParams
+        fun viewHolderLayoutParams(): ViewHolderLayoutProvider<T>
     }
 
     @ExperimentalApi
@@ -41,7 +47,7 @@ interface RecyclerViewHost<T : Parcelable>: Rib, Connectable<Input<T>, Nothing> 
     @ExperimentalApi
     sealed class Input<T : Parcelable> : Parcelable {
         @Parcelize
-        data class Add<T : Parcelable>(val element: T): Input<T>()
+        data class Add<T : Parcelable>(val element: T) : Input<T>()
     }
 }
 
