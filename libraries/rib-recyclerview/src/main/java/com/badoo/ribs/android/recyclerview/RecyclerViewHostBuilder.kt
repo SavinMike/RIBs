@@ -57,11 +57,11 @@ class RecyclerViewHostBuilder<T : Parcelable>(
             buildParams = buildParams,
             plugins = listOf(
                 router,
-                interactor
+                interactor,
+                adapter
             ),
             viewDeps =  viewDeps,
-            timeCapsule = timeCapsule,
-            adapter = adapter
+            timeCapsule = timeCapsule
         )
     }
 }

@@ -4,6 +4,7 @@ import android.os.Parcelable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.lifecycle.Lifecycle
 import androidx.recyclerview.widget.RecyclerView
 import com.badoo.ribs.android.recyclerview.RecyclerViewHost.HostingStrategy.EAGER
 import com.badoo.ribs.android.recyclerview.RecyclerViewHost.HostingStrategy.LAZY
@@ -11,8 +12,9 @@ import com.badoo.ribs.android.recyclerview.RecyclerViewHost.Input
 import com.badoo.ribs.android.recyclerview.RecyclerViewHostFeature.State.Entry
 import com.badoo.ribs.annotation.ExperimentalApi
 import com.badoo.ribs.core.Node
-import com.badoo.ribs.routing.activator.ChildActivator
+import com.badoo.ribs.core.plugin.NodeLifecycleAware
 import com.badoo.ribs.routing.Routing
+import com.badoo.ribs.routing.activator.ChildActivator
 import com.badoo.ribs.routing.source.impl.Pool
 import com.badoo.ribs.util.RIBs.errorHandler
 import io.reactivex.functions.Consumer
@@ -27,10 +29,11 @@ internal class Adapter<T : Parcelable>(
     private val viewHolderLayoutParams: FrameLayout.LayoutParams
 ) : RecyclerView.Adapter<Adapter.ViewHolder>(),
     Consumer<RecyclerViewHostFeature.State<T>>,
+    NodeLifecycleAware,
     ChildActivator<T> {
 
     private val holders: MutableMap<Routing.Identifier, WeakReference<ViewHolder>> = mutableMapOf()
-    private val addedItems: MutableList<ConfigurationKey<Configuration>> = mutableListOf()
+    private val addedItems: MutableList<Routing.Identifier> = mutableListOf()
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         var identifier: Routing.Identifier? = null
@@ -55,7 +58,17 @@ internal class Adapter<T : Parcelable>(
 
     private fun eagerAdd(entry: Entry<T>) {
         if (hostingStrategy == EAGER) {
-            addToRouter(entry.identifier)
+            addToRouter(entry.element, entry.identifier)
+        }
+    }
+
+    override fun onAttach(nodeLifecycle: Lifecycle) {
+        items.forEach(::eagerAdd)
+    }
+
+    override fun onDetach() {
+        addedItems.forEach {
+            routingSource.deactivate(it)
         }
     }
 
@@ -77,7 +90,6 @@ internal class Adapter<T : Parcelable>(
         holders[identifier] = WeakReference(holder)
 
         if (hostingStrategy == LAZY) {
-            addToRouter(configurationKey)
             val entry = feature.state.items.find { it.identifier == identifier }!!
             addToRouter(entry.element, entry.identifier)
         }
@@ -101,25 +113,18 @@ internal class Adapter<T : Parcelable>(
         } ?: errorHandler.handleNonFatalError("Holder is not bound! holder: $holder")
     }
 
-    internal fun onDestroy() {
-        addedItems.forEach {
-            routingSource.deactivate(it.identifier)
-        }
-    }
-
     override fun deactivate(routing: Routing<T>, child: Node<*>) {
         child.saveViewState()
         child.detachFromView()
     }
 
-
-    private fun removeFromRouter(configurationKey: ConfigurationKey<Configuration>) {
-        addedItems.remove(configurationKey)
-        router.remove(configurationKey)
+    private fun removeFromRouter(identifier: Routing.Identifier) {
+        addedItems.remove(identifier)
+        routingSource.remove(identifier)
     }
 
-    private fun addToRouter(configurationKey: ConfigurationKey<Configuration>){
-        addedItems.add(configurationKey)
-        router.add(configurationKey)
+    private fun addToRouter(element: T, identifier: Routing.Identifier) {
+        addedItems.add(identifier)
+        routingSource.add(element, identifier)
     }
 }

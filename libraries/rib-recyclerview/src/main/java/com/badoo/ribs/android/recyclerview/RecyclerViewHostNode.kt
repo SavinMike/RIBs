@@ -16,7 +16,6 @@ internal class RecyclerViewHostNode<T : Parcelable>(
     plugins: List<Plugin>,
     private val viewDeps: RecyclerViewHostView.Dependency,
     private val timeCapsule: AndroidTimeCapsule,
-    private val adapter: Adapter<T>,
     private val connector: NodeConnector<Input<T>, Nothing> = NodeConnector()
 ) : Node<RibView>(
     buildParams = buildParams,
@@ -27,10 +26,5 @@ internal class RecyclerViewHostNode<T : Parcelable>(
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         timeCapsule.saveState(outState)
-    }
-
-    override fun onDetach() {
-        adapter.onDestroy()
-        super.onDetach()
     }
 }
