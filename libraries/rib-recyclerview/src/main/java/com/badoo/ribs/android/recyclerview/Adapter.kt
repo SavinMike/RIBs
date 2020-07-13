@@ -30,6 +30,7 @@ internal class Adapter<T : Parcelable>(
     ChildActivator<T> {
 
     private val holders: MutableMap<Routing.Identifier, WeakReference<ViewHolder>> = mutableMapOf()
+    private val addedItems: MutableList<ConfigurationKey<Configuration>> = mutableListOf()
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         var identifier: Routing.Identifier? = null
@@ -54,7 +55,7 @@ internal class Adapter<T : Parcelable>(
 
     private fun eagerAdd(entry: Entry<T>) {
         if (hostingStrategy == EAGER) {
-            routingSource.add(entry.element, entry.identifier)
+            addToRouter(entry.identifier)
         }
     }
 
@@ -76,8 +77,9 @@ internal class Adapter<T : Parcelable>(
         holders[identifier] = WeakReference(holder)
 
         if (hostingStrategy == LAZY) {
+            addToRouter(configurationKey)
             val entry = feature.state.items.find { it.identifier == identifier }!!
-            routingSource.add(entry.element, entry.identifier)
+            addToRouter(entry.element, entry.identifier)
         }
 
         routingSource.activate(identifier)
@@ -94,13 +96,13 @@ internal class Adapter<T : Parcelable>(
         holder.identifier?.let { identifier ->
             routingSource.deactivate(identifier)
             if (hostingStrategy == LAZY) {
-                routingSource.remove(identifier)
+                removeFromRouter(identifier)
             }
         } ?: errorHandler.handleNonFatalError("Holder is not bound! holder: $holder")
     }
 
     internal fun onDestroy() {
-        items.forEach {
+        addedItems.forEach {
             routingSource.deactivate(it.identifier)
         }
     }
@@ -108,5 +110,16 @@ internal class Adapter<T : Parcelable>(
     override fun deactivate(routing: Routing<T>, child: Node<*>) {
         child.saveViewState()
         child.detachFromView()
+    }
+
+
+    private fun removeFromRouter(configurationKey: ConfigurationKey<Configuration>) {
+        addedItems.remove(configurationKey)
+        router.remove(configurationKey)
+    }
+
+    private fun addToRouter(configurationKey: ConfigurationKey<Configuration>){
+        addedItems.add(configurationKey)
+        router.add(configurationKey)
     }
 }
